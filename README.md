@@ -127,54 +127,135 @@ To decrypt, use the INVERSE (opposite) of the last 3 rules, and the 1st as-is (d
 
 ## PROGRAM:
 ```
-#include <stdio.h>
-#include <string.h>
+#include<stdio.h>
+#include<string.h>
+#include<ctype.h>
+#define MX 5
 
-#include <ctype.h>
-void main()
-
-{
-    char plain[10],cipher[10];
-    int key,i,length;
-    int result;
-    printf("\n Enter the plain text:");
-    scanf("%s", plain);
-    printf("\n Enter the key value:");
-    scanf("%d", &key);
-    printf("\n \n \t PLAIN TEXt: %s", plain);
-    printf("\n \n \t ENCRYPTED TEXT:");
-    for(i=0, length = strlen(plain); i<length; i++)
-    {
-        
-        cipher[i]=plain[i] + key;
-        if (isupper(plain[i]) && (cipher[i] > 'Z'))
-        cipher[i] = cipher[i] - 26;
-        if (islower(plain[i]) && (cipher[i] > 'z'))
-        cipher[i] = cipher[i] - 26;
-        printf("%c", cipher[i]);
-
+void playfair(char ch1, char ch2, char key[MX][MX]) {
+    int i, j, w, x, y, z;
+    FILE *out;
+    if ((out = fopen("cipher.txt", "a+")) == NULL) {
+        printf("File Corrupted.\n");
+        return;
     }
-    printf("\n \n \t AFTER DECRYPTION : ");
-    for(i=0;i<length;i++)
-    {
-        
-        plain[i]=cipher[i]-key;
-        if(isupper(cipher[i])&&(plain[i]<'A'))
-        plain[i]=plain[i]+26;
-        if(islower(cipher[i])&&(plain[i]<'a'))
-        plain[i]=plain[i]+26;
-        printf("%c",plain[i]);
-    }
-    getchar();
 
+    // Find the positions of ch1 and ch2 in the key matrix
+    for (i = 0; i < MX; i++) {
+        for (j = 0; j < MX; j++) {
+            if (ch1 == key[i][j]) {
+                w = i;
+                x = j;
+            }
+            else if (ch2 == key[i][j]) {
+                y = i;
+                z = j;
+            }
+        }
+    }
+
+    // Encrypt based on the position of the characters
+    if (w == y) { // Same row
+        x = (x + 1) % 5;
+        z = (z + 1) % 5;
+        printf("%c%c", key[w][x], key[y][z]);
+        fprintf(out, "%c%c", key[w][x], key[y][z]);
+    } 
+    else if (x == z) { // Same column
+        w = (w + 1) % 5;
+        y = (y + 1) % 5;
+        printf("%c%c", key[w][x], key[y][z]);
+        fprintf(out, "%c%c", key[w][x], key[y][z]);
+    } 
+    else { // Rectangle swap
+        printf("%c%c", key[w][z], key[y][x]);
+        fprintf(out, "%c%c", key[w][z], key[y][x]);
+    }
+
+    fclose(out);
+}
+
+int main() {
+    int i, j, k = 0, l, m = 0, n;
+    char key[MX][MX], keyminus[25], keystr[10], str[25] = {0};
+    char alpa[26] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
     
+    printf("\nEnter key: ");
+    fgets(keystr, sizeof(keystr), stdin);
+    keystr[strcspn(keystr, "\n")] = 0; // Remove newline character
+
+    printf("\nEnter the plain text: ");
+    fgets(str, sizeof(str), stdin);
+    str[strcspn(str, "\n")] = 0; // Remove newline character
+
+    n = strlen(keystr);
+    for (i = 0; i < n; i++) {
+        if (keystr[i] == 'j') keystr[i] = 'i';
+        else if (keystr[i] == 'J') keystr[i] = 'I';
+        keystr[i] = toupper(keystr[i]);
+    }
+
+    for (i = 0; i < strlen(str); i++) {
+        if (str[i] == 'j') str[i] = 'i';
+        else if (str[i] == 'J') str[i] = 'I';
+        str[i] = toupper(str[i]);
+    }
+
+    // Remove letters already in the key from the alphabet
+    j = 0;
+    for (i = 0; i < 26; i++) {
+        for (k = 0; k < n; k++) {
+            if (keystr[k] == alpa[i]) break;
+            else if (alpa[i] == 'J') break;
+        }
+        if (k == n) {
+            keyminus[j] = alpa[i];
+            j++;
+        }
+    }
+
+    // Construct the 5x5 key matrix
+    k = 0;
+    for (i = 0; i < MX; i++) {
+        for (j = 0; j < MX; j++) {
+            if (k < n) {
+                key[i][j] = keystr[k];
+                k++;
+            } else {
+                key[i][j] = keyminus[m];
+                m++;
+            }
+            printf("%c ", key[i][j]);
+        }
+        printf("\n");
+    }
+
+    printf("\n\nEntered text : %s\nCipher Text : ", str);
+
+    // Encrypt the plaintext using the Playfair cipher
+    for (i = 0; i < strlen(str); i++) {
+        if (str[i] == 'J') str[i] = 'I';
+        if (str[i + 1] == '\0') playfair(str[i], 'X', key); // Add padding 'X' if odd length
+        else {
+            if (str[i + 1] == 'J') str[i + 1] = 'I';
+            if (str[i] == str[i + 1]) playfair(str[i], 'X', key); // If same letters, use 'X' as padding
+            else {
+                playfair(str[i], str[i + 1], key);
+                i++; // Skip the next letter after processing a pair
+            }
+        }
+    }
+
+    printf("\nDecrypted text: %s", str);
+    return 0;
 }
 ```
 
 
 ## OUTPUT:
 Output:
-![Screenshot 2025-03-19 094422](https://github.com/user-attachments/assets/ad8b82d9-2309-4204-933f-df245cba7b16)
+![Screenshot 2025-03-19 051847](https://github.com/user-attachments/assets/286d232e-25c5-43d6-8411-46c1f0231dd2)
+
 
 
 
